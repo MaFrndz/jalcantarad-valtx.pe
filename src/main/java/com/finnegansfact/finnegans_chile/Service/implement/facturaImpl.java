@@ -2,14 +2,13 @@ package com.finnegansfact.finnegans_chile.Service.implement;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.text.SimpleDateFormat;
 import java.util.GregorianCalendar;
 
+import com.finnegansfact.finnegans_chile.Entities.Cliente;
 import com.finnegansfact.finnegans_chile.Entities.Empresa;
 import com.finnegansfact.finnegans_chile.Entities.FacturaParams;
 import com.finnegansfact.finnegans_chile.Entities.FacturaResp;
-import com.finnegansfact.finnegans_chile.Entities.Cliente;
-import com.finnegansfact.finnegans_chile.Entities.Concepto;
+import com.finnegansfact.finnegans_chile.Entities.FacturaVentaActualizarResp;
 import com.finnegansfact.finnegans_chile.Entities.Localidad;
 import com.finnegansfact.finnegans_chile.Entities.Producto;
 import com.finnegansfact.finnegans_chile.Entities.Result;
@@ -20,6 +19,7 @@ import com.finnegansfact.finnegans_chile.Entities.prueba2;
 import com.finnegansfact.finnegans_chile.Service.facturaService;
 import com.finnegansfact.finnegans_chile.Util.serviceConsumer;
 import com.google.gson.Gson;
+import com.itextpdf.text.pdf.PdfStructTreeController.returnType;
 import com.liquid_technologies.ltxmllib12.DateTime;
 import com.liquid_technologies.ltxmllib12.exceptions.LtException;
 
@@ -27,7 +27,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import DocumentoDTE.SiiDte.Referencia_CodRef;
 import dteboxcliente.Ambiente;
 import dteboxcliente.TipoPDF417;
 @Service
@@ -54,19 +53,15 @@ public class facturaImpl implements facturaService {
     private String url_gdeexpres_auth;
 
 
-    @Override
-    public prueba2 pruebaPost(){
+    
+    private FacturaVentaActualizarResp facturaVentaActualizarVersion(String token, FacturaResp factura, String ted){
 
-        String BASE_URL = "http://localhost:5050/api/fLogin/autenticacion";     
-        
-        prueba p = new prueba();
-        p.setContrasenia("123456789");
-        p.setUsuarioSistema("mfernandez");
-        
-        String JSON = gson.toJson(p);
-        //serviceConsumer consumer  = new serviceConsumer();
-        prueba2 result = gson.fromJson(consumer.ejecutarServicio_post(JSON, BASE_URL), prueba2.class);
-        return result;
+        factura.setCAE( obtenerVersion(ted) );
+        String BASE_URL = "https://api.teamplace.finneg.com/api/facturaVenta?ACCESS_TOKEN="+token;
+        String JSON = gson.toJson(factura);
+        FacturaVentaActualizarResp result = gson.fromJson(consumer.ejecutarServicio_post(JSON, BASE_URL), FacturaVentaActualizarResp.class);
+
+        return result; 
     }
     
     @Override
@@ -215,6 +210,8 @@ public class facturaImpl implements facturaService {
             dteboxcliente.Servicio servicio = new dteboxcliente.Servicio(url_gdeexpres_api, url_gdeexpres_auth);        
             dteboxcliente.ResultadoEnvioDocumento resultado_envio = servicio.EnviarDocumento(dte,ambiente, "2021-10-19",numeroResolucion,tipoPdf417,generarFolio);
             resultado.setDetalle(resultado_envio);
+            FacturaVentaActualizarResp resultaActualizar = facturaVentaActualizarVersion(param.getToken(), facturaVenta, resultado_envio.getTED()); 
+            resultado.setFacturaVentaActualizar(resultaActualizar);
             
 
         } catch (LtException e) {
@@ -232,4 +229,9 @@ public class facturaImpl implements facturaService {
         return resp; 
     }
     
+    private String obtenerVersion(String cadena){
+        Integer result = cadena.indexOf("CAF version");
+        String version = cadena.substring(result+13, result+16);
+        return version;
+    }
 }
